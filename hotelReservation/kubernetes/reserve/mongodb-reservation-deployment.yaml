@@ -38,11 +38,11 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: reservation
+              name: mongo-reservation
       hostname: reservation-db
       restartPolicy: Always
       volumes:
-        - name: reservation
+        - name: mongo-reservation
           persistentVolumeClaim:
-            claimName: reservation-pvc
+            claimName: mongo-reservation-pvc
 status: {}

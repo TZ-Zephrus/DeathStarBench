@@ -38,11 +38,11 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: profile
+              name: mongo-profile
       hostname: profile-db
       restartPolicy: Always
       volumes:
-        - name: profile
+        - name: mongo-profile
           persistentVolumeClaim:
-            claimName: profile-pvc
+            claimName: mongo-profile-pvc
 status: {}

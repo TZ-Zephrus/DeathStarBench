@@ -38,11 +38,11 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: user
+              name: mongo-user
       hostname: user-db
       restartPolicy: Always
       volumes:
-        - name: user
+        - name: mongo-user
           persistentVolumeClaim:
-            claimName: user-pvc
+            claimName: mongo-user-pvc
 status: {}

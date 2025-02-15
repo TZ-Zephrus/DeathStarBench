@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-envoy-config
+data:
+  egress.yaml: |
+    admin:
+      access_log_path: /dev/stdout
+      address:
+        socket_address:
+          protocol: TCP
+          address: 0.0.0.0
+          port_value: 9901
+
+    static_resources:
+      listeners:
+      - name: egress_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 15001
+        transparent: true
+        bind_to_port: false
+        traffic_direction: OUTBOUND
+        listener_filters:
+        - name: envoy.filters.listener.original_dst
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              # 新增内部地址配置
+              internal_address_config:
+                unix_sockets: false
+                cidr_ranges:
+                - address_prefix: 127.0.0.1
+                  prefix_len: 8
+              # 新增关键配置
+              stream_idle_timeout: 300s  # 防止空闲连接导致崩溃
+              request_timeout: 30s
+              stat_prefix: egress_http
+              use_remote_address: true
+              http_filters:
+              - name: envoy.filters.http.grpc_web
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.lua
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                  source_codes:
+                    token_check:
+                      filename: /etc/envoy/scripts/token_check.lua
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                name: egress_route
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: original_dst
+                      auto_host_rewrite: true
+
+      clusters:
+      - name: original_dst
+        connect_timeout: 1s
+        type: ORIGINAL_DST
+        lb_policy: CLUSTER_PROVIDED
+        original_dst_lb_config:
+          use_http_header: false
+        circuit_breakers:
+          thresholds:
+          - priority: DEFAULT
+            max_connections: 10000
+            max_pending_requests: 10000
+            max_requests: 10000

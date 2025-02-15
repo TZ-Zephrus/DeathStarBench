@@ -4,17 +4,19 @@ metadata:
   annotations:
     kompose.cmd: kompose convert
     kompose.version: 1.22.0 (955b78124)
+    external-dns.alpha.kubernetes.io/hostname: frontend.hotelreservation.com
   creationTimestamp: null
   labels:
     io.kompose.service: frontend
   name: frontend
 spec:
   type: NodePort
+  externalTrafficPolicy: Local
   ports:
     - name: "5000"
       port: 5000
       targetPort: 5000
-      nodePort: 32567
+      nodePort: 30981
   selector:
     io.kompose.service: frontend
 status:

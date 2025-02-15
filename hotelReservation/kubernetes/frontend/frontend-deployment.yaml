@@ -21,10 +21,48 @@ spec:
         kompose.version: 1.22.0 (955b78124)
         sidecar.istio.io/statsInclusionPrefixes: cluster.outbound,cluster_manager,listener_manager,http_mixer_filter,tcp_mixer_filter,server,cluster.xds-grp,listener,connection_manager
         sidecar.istio.io/statsInclusionRegexps: http.*
+        container.apparmor.security.beta.kubernetes.io/iptables-setup: unconfined
       creationTimestamp: null
       labels:
         io.kompose.service: frontend
     spec:
+      initContainers:
+      - name: iptables-setup
+        image: ubuntu:22.04
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            # Ubuntu环境安装iptables
+            apt-get update && apt-get install -y iptables 
+            # 强制使用legacy模式
+            update-alternatives --set iptables /usr/sbin/iptables-legacy
+            # 清空旧规则
+            iptables-legacy -t mangle -F
+            iptables-legacy -t nat -F
+
+            # 创建自定义链
+            iptables-legacy -t mangle -N ENVOY_TPROXY
+            iptables-legacy -t mangle -A ENVOY_TPROXY -j MARK --set-mark 0x1
+            iptables-legacy -t mangle -A ENVOY_TPROXY -j ACCEPT
+
+            # 主规则
+            iptables-legacy -t mangle -A PREROUTING -p tcp -m owner ! --uid-owner 101 -j ENVOY_TPROXY
+            iptables-legacy -t mangle -A PREROUTING -p tcp -m mark --mark 0x1 -j TPROXY --tproxy-mark 0x1/0x1 --on-port 15001
+
+            # 验证输出
+            iptables-legacy -t mangle -L -n -v
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW", "SYS_ADMIN"]
+          runAsUser: 0
+          privileged: true
+      - name: create-scripts-dir
+        image: busybox:1.37.0
+        command: ["mkdir", "-p", "/etc/envoy/scripts/"]
+        volumeMounts:
+        - name: envoy-scripts
+          mountPath: /etc/envoy/scripts/
+
       containers:
         - command:
             - frontend
@@ -37,5 +75,52 @@ spec:
               cpu: 100m
             limits:
               cpu: 1000m
-      restartPolicy: Always
+          securityContext:
+            capabilities:
+              add: ["NET_RAW", "NET_ADMIN", "SYS_ADMIN"]
+            privileged: true
+
+        - name: egress-envoy
+          image: envoyproxy/envoy:v1.32.3
+          command: ["sh", "-c", "envoy --mode validate -c /etc/envoy/egress.yaml && envoy -c /etc/envoy/egress.yaml"]
+          env:
+          - name: ENVOY_UID
+            value: "101"
+          - name: ENVOY_GID
+            value: "101"
+          ports:
+          - containerPort: 15001
+          volumeMounts:
+          - name: envoy-config
+            mountPath: /etc/envoy
+          - name: envoy-scripts
+            mountPath: /etc/envoy/scripts
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 5000m
+              memory: 1Gi
+          securityContext:
+            capabilities:
+              add: ["NET_RAW", "NET_ADMIN", "SYS_ADMIN", "NET_BIND_SERVICE"]
+            privileged: true
+            readOnlyRootFilesystem: false
+            runAsUser: 101
+
+      volumes:
+      - name: envoy-config
+        configMap:
+          name: frontend-envoy-config
+          items:
+          - key: egress.yaml
+            path: egress.yaml
+      - name: envoy-scripts
+        configMap:
+          name: envoy-scripts
+          items:
+          - key: token_check.lua
+            path: token_check.lua
+
 status: {}

@@ -38,11 +38,11 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: recommendation
+              name: mongo-recommendation
       hostname: recommendation-db
       restartPolicy: Always
       volumes:
-        - name: recommendation
+        - name: mongo-recommendation
           persistentVolumeClaim:
-            claimName: recommendation-pvc
+            claimName: mongo-recommendation-pvc
 status: {}

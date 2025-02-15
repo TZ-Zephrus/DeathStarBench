@@ -38,10 +38,10 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: geo
+              name: mongo-geo
       restartPolicy: Always
       volumes:
-        - name: geo
+        - name: mongo-geo
           persistentVolumeClaim:
-            claimName: geo-pvc
+            claimName: mongo-geo-pvc
 status: {}

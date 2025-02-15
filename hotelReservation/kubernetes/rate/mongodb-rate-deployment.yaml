@@ -38,10 +38,10 @@ spec:
               cpu: 1000m
           volumeMounts:
             - mountPath: /data/db
-              name: rate
+              name: mongo-rate
       restartPolicy: Always
       volumes:
-        - name: rate
+        - name: mongo-rate
           persistentVolumeClaim:
-            claimName: rate-pvc
+            claimName: mongo-rate-pvc
 status: {}

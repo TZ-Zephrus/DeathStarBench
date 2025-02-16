@@ -58,3 +58,8 @@ View Jaeger traces by accessing:
 e.g., to copy the results directory from the on-cluster client to the local machine:
   - `hrclient=$(oc get pod | grep hr-client- | cut -f 1 -d " ")`
   - `oc cp hotel-res/${hrclient}:/root/DeathStarBench/hotelReservation/openshift/results /tmp`
+
+
+### 启动时
+先创建存储卷
+创建configmap

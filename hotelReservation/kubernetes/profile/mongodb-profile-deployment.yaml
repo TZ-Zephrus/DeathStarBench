@@ -44,5 +44,5 @@ spec:
       volumes:
         - name: profile
           persistentVolumeClaim:
-            claimName: profile-pvc
+            claimName: mongo-profile-pvc
 status: {}

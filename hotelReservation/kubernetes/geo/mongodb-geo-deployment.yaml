@@ -43,5 +43,5 @@ spec:
       volumes:
         - name: geo
           persistentVolumeClaim:
-            claimName: geo-pvc
+            claimName: mongo-geo-pvc
 status: {}

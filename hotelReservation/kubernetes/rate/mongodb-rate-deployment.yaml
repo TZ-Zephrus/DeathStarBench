@@ -43,5 +43,5 @@ spec:
       volumes:
         - name: rate
           persistentVolumeClaim:
-            claimName: rate-pvc
+            claimName: mongo-rate-pvc
 status: {}

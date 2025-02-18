@@ -1,0 +1,44 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: geo-inbound-filter
+  namespace: hr2
+spec:
+  workloadSelector:
+    labels:
+      io.kompose.service: geo  # 匹配geo服务的Pod标签
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        portNumber: 8083
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          defaultSourceCode:
+            inlineString: |
+              function envoy_on_request(request_handle)
+                local auth = request_handle:headers():get("x-custom-auth")
+                
+                if auth ~= "verified" then
+                  request_handle:logErr(string.format("[gRPC AUTH] Invalid auth header: %s", tostring(auth)))
+                  request_handle:respond(
+                    {
+                      [":status"] = "200",
+                      ["content-type"] = "application/grpc",
+                      ["grpc-status"] = "16",
+                      ["grpc-message"] = "Missing valid authentication header"
+                    },
+                    ""  -- 空响应体
+                  )
+                end
+              end

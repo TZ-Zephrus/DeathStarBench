@@ -1,219 +1,566 @@
-apiVersion: networking.istio.io/v1alpha3
-kind: EnvoyFilter
-metadata:
-  name: frontend-lua-filter
-  namespace: hr2
-spec:
-  workloadSelector:
-    labels:
-      io.kompose.service: frontend  # 匹配您现有的frontend标签
-  configPatches:
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8081
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+# apiVersion: networking.istio.io/v1alpha3
+# kind: EnvoyFilter
+# metadata:
+#   name: frontend-lua-filter
+#   namespace: hr2
+#   annotations:
+#     version: "v5"  # 每次修改递增版本号
+# spec:
+#   workloadSelector:
+#     labels:
+#       io.kompose.service: frontend  # 匹配您现有的frontend标签
+#   configPatches:
+#     - applyTo: HTTP_FILTER
+#       match:
+#         context: SIDECAR_OUTBOUND
+#         listener:
+#           filterChain:
+#             filter:
+#               name: "envoy.filters.network.http_connection_manager"
+#               subFilter:
+#                 name: "envoy.filters.http.router"
+#       patch:
+#         operation: INSERT_BEFORE
+#         value:
+#           name: envoy.filters.http.lua
+#           typed_config:
+#             "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#             inlineCode: |
+#               function envoy_on_request(request_handle)
+#                 request_handle:logInfo("This is ALL")
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8082
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#                 -- 获取请求路径和目标端口
+#                 local path = request_handle:headers():get(":path") or ""
+#                 local authority = request_handle:headers():get(":authority") or ""
+#                 local port = authority:match(":(%d+)$") or "80"
+#                 -- 过滤Consul健康检查请求
+#                 if port == "8500" or path:match("/v1/health/service/") then
+#                   request_handle:logInfo("This is health check")
+#                   return  -- 直接返回不处理
+#                 end
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8083
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#                 -- 记录请求信息
+#                 request_handle:logInfo(string.format(
+#                   "Request to port: %s | Path: %s | Method: %s",
+#                   port,
+#                   request_handle:headers():get(":path") or "",
+#                   request_handle:headers():get(":method") or ""
+#                 ))
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8084
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#                 -- 添加gRPC兼容的元数据
+#                 request_handle:headers():add("x-custom-auth", "verified")
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8085
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#                 -- 确保Content-Type正确
+#                 local content_type = request_handle:headers():get("content-type") or ""
+#                 if not string.find(content_type, "application/grpc") then
+#                   request_handle:logWarn("[LUA] 8081 Non-gRPC content-type: " .. content_type)
+#                 end
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8086
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
-              
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
-              
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#                 -- 打印请求头
+#                 request_handle:logInfo("=== Request Headers ===")
+#                 for name, value in pairs(headers) do
+#                   request_handle:logInfo(string.format("%s: %s", name, value))
+#                 end
+                
+#                 -- 打印修改后的头
+#                 request_handle:logInfo("=== Modified Headers ===")
+#                 for name, value in pairs(headers) do
+#                   request_handle:logInfo(string.format("%s: %s", name, value))
+#                 end
 
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        portNumber: 8087
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-            subFilter:
-              name: "envoy.filters.http.router"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.lua
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inlineCode: |
-            function envoy_on_request(request_handle)
-              -- 添加gRPC兼容的元数据
-              request_handle:headers():add("x-custom-auth", "verified")
+#                 request_handle:logInfo("[LUA] ALL Added x-custom-auth header")
+#               end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8081")
+
+#   #             -- 获取请求路径和目标端口
+#   #             local path = request_handle:headers():get(":path") or ""
+#   #             local authority = request_handle:headers():get(":authority") or ""
+#   #             local port = authority:match(":(%d+)$") or "80"
+#   #             -- 过滤Consul健康检查请求
+#   #             if port == "8500" or path:match("/v1/health/service/") then
+#   #               request_handle:logInfo("This is health check")
+#   #               return  -- 直接返回不处理
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8081 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
               
-              -- 确保Content-Type正确
-              local content_type = request_handle:headers():get("content-type") or ""
-              if not content_type:find("application/grpc") then
-                request_handle:logWarn("[LUA] Non-gRPC content-type: "..content_type)
-              end
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] 8081 Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8082
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8082")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8082 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8083
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8083")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8083 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 记录原始头
+#   #             request_handle:logInfo("=== Original Headers ===")
+#   #             request_handle:headers():iterate(function(key, value)
+#   #               request_handle:logInfo(string.format("[BEFORE] %s: %s", key, value))
+#   #             end)
+
+#   #             -- 记录修改后头（此时新添加的头也会出现在这里）
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             request_handle:headers():iterate(function(key, value)
+#   #               request_handle:logInfo(string.format("[AFTER] %s: %s", key, value))
+#   #             end)
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8084
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8084")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8084 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
               
-              request_handle:logInfo("[LUA] Added x-custom-auth header")
-            end
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8085
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8085")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8085 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8086
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8086")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8086 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+              
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       portNumber: 8087
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is 8087")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] 8087 Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+              
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
+
+#   # - applyTo: HTTP_FILTER
+#   #   match:
+#   #     context: SIDECAR_OUTBOUND
+#   #     listener:
+#   #       filterChain:
+#   #         filter:
+#   #           name: "envoy.filters.network.http_connection_manager"
+#   #           subFilter:
+#   #             name: "envoy.filters.http.router"
+#   #   patch:
+#   #     operation: INSERT_BEFORE
+#   #     value:
+#   #       name: envoy.filters.http.lua
+#   #       typed_config:
+#   #         "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+#   #         inlineCode: |
+#   #           function envoy_on_request(request_handle)
+#   #             request_handle:logInfo("This is all")
+
+#   #             -- 获取目标端口
+#   #             local authority = request_handle:headers():get(":authority")
+#   #             local port = "80"
+#   #             if authority then
+#   #               local matched = string.match(authority, ":(%d+)$")
+#   #               if matched then
+#   #                 port = matched
+#   #               end
+#   #             end
+
+#   #             -- 记录请求信息
+#   #             request_handle:logInfo(string.format(
+#   #               "Request to port: %s | Path: %s | Method: %s",
+#   #               port,
+#   #               request_handle:headers():get(":path") or "",
+#   #               request_handle:headers():get(":method") or ""
+#   #             ))
+
+#   #             -- 添加gRPC兼容的元数据
+#   #             request_handle:headers():add("x-custom-auth", "verified")
+
+#   #             -- 确保Content-Type正确
+#   #             local content_type = request_handle:headers():get("content-type") or ""
+#   #             if not string.find(content_type, "application/grpc") then
+#   #               request_handle:logWarn("[LUA] All Non-gRPC content-type: " .. content_type)
+#   #             end
+
+#   #             -- 打印请求头
+#   #             request_handle:logInfo("=== Request Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+              
+#   #             -- 打印修改后的头
+#   #             request_handle:logInfo("=== Modified Headers ===")
+#   #             for name, value in pairs(headers) do
+#   #               request_handle:logInfo(string.format("%s: %s", name, value))
+#   #             end
+
+#   #             request_handle:logInfo("[LUA] Added x-custom-auth header")
+#   #           end
